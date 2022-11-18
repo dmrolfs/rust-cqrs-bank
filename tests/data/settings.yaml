@@ -1,0 +1,15 @@
+---
+machine_id: 1
+node_id: 1
+
+application:
+  host: 0.0.0.0
+  port: 8000
+
+database:
+  username: otis
+  password: neo
+  port: 5432
+  host: localhost
+  database_name: stella
+  require_ssl: true
