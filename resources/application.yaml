@@ -1,9 +1,13 @@
 machine_id: 1
 node_id: 1
 
-application:
-  port: 8000
+http_api:
   host: 0.0.0.0
+  port: 8000
+  timeout_secs: 5
+  rate_limit:
+    nr_requests: 10
+    per_secs: 1
 
 database:
   host: "localhost"

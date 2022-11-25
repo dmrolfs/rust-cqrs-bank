@@ -9,7 +9,7 @@ mod loading {
     use std::ops::Deref;
 
     static SETTINGS: once_cell::sync::Lazy<Settings> = once_cell::sync::Lazy::new(|| Settings {
-        application: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+        http_api: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
         database: DatabaseSettings {
             username: "otis".to_string(),
             password: Secret::new("neo".to_string()),
@@ -40,7 +40,7 @@ mod loading {
         .unwrap();
 
         let expected = Settings {
-            application: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+            http_api: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
             database: DatabaseSettings {
                 username: "user_1".to_string(),
                 password: Secret::new("my_password".to_string()),
@@ -146,12 +146,12 @@ mod loading {
             vec![("APP_ENVIRONMENT", Some("local"))],
             || {
                 let actual: Settings = assert_ok!(Settings::load(&options));
-                assert_eq!(actual.application.host.as_str(), "127.0.0.1");
+                assert_eq!(actual.http_api.host.as_str(), "127.0.0.1");
 
                 let expected = Settings {
-                    application: HttpServerSettings {
+                    http_api: HttpServerSettings {
                         host: "127.0.0.1".to_string(),
-                        ..SETTINGS.application.clone()
+                        ..SETTINGS.http_api.clone()
                     },
                     database: DatabaseSettings {
                         username: "snoopy".to_string(),
