@@ -14,3 +14,6 @@ database:
   port: 5432
   database_name: "bank"
   require_ssl: false
+  max_connections: 10
+  max_lifetime_secs: 1800
+  idle_timeout_secs: 300

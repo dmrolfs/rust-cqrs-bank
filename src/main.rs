@@ -11,5 +11,6 @@ async fn main() -> anyhow::Result<()> {
     let settings = bankaccount::Settings::load(&options)?;
     tracing::info!(?options, ?settings, %app_environment, "loaded settings via CLI options and environment");
 
-    todo!()
+    let api_handle = bankaccount::run_http_server(&settings).await?;
+    api_handle.await?.map_err(|err| err.into())
 }

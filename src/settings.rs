@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use settings_loader::common::database::DatabaseSettings;
-use settings_loader::common::http::HttpServerSettings;
 use settings_loader::SettingsLoader;
 
 mod cli_options;
@@ -13,7 +12,7 @@ pub use http_api_settings::HttpApiSettings;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Settings {
-    pub http_api: HttpServerSettings,
+    pub http_api: HttpApiSettings,
     pub database: DatabaseSettings,
 
     #[serde(flatten)]

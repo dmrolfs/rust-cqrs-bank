@@ -1,9 +1,11 @@
+use crate::http_server::app_state::AppState;
 use crate::model::BankAccountAggregate;
-use crate::queries::BankAccountProjection;
+use crate::queries::BankAccountViewProjection;
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Router;
-use axum::{routing, Extension, Json};
+use axum::{routing, Json};
 use itertools::Itertools;
 use serde::Serialize;
 use serde_json::json;
@@ -11,11 +13,11 @@ use std::collections::HashMap;
 use std::string::ToString;
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
-pub fn api() -> Router {
+pub fn api() -> Router<AppState> {
     Router::new()
-        .route("/", routing::get(health))
-        .route("/ready", routing::get(readiness))
-        .route("/live", routing::get(liveness))
+        .route("/", routing::get(serve_health))
+        .route("/ready", routing::get(serve_readiness))
+        .route("/live", routing::get(serve_liveness))
 }
 
 #[derive(
@@ -52,9 +54,8 @@ impl From<HealthStatus> for StatusCode {
 }
 
 #[tracing::instrument(level = "trace", skip(agg, view))]
-async fn health(
-    Extension(agg): Extension<BankAccountAggregate>,
-    Extension(view): Extension<BankAccountProjection>,
+async fn serve_health(
+    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
 ) -> impl IntoResponse {
     let (system_health, _health_report) = check_health(agg, view).await;
     serde_json::to_value::<HealthStatusResponse>(system_health.into())
@@ -68,9 +69,8 @@ async fn health(
 }
 
 #[tracing::instrument(level = "trace", skip(agg, view))]
-async fn readiness(
-    Extension(agg): Extension<BankAccountAggregate>,
-    Extension(view): Extension<BankAccountProjection>,
+async fn serve_readiness(
+    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
 ) -> impl IntoResponse {
     let (system_health, _) = check_health(agg, view).await;
     let status_code: StatusCode = system_health.into();
@@ -78,9 +78,8 @@ async fn readiness(
 }
 
 #[tracing::instrument(level = "trace", skip(agg, view))]
-async fn liveness(
-    Extension(agg): Extension<BankAccountAggregate>,
-    Extension(view): Extension<BankAccountProjection>,
+async fn serve_liveness(
+    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
 ) -> impl IntoResponse {
     let (system_health, _) = check_health(agg, view).await;
     let status_code: StatusCode = system_health.into();
@@ -89,7 +88,7 @@ async fn liveness(
 
 #[tracing::instrument(level = "trace", skip(_bankaccount_agg, _bankaccount_view))]
 async fn check_health(
-    _bankaccount_agg: BankAccountAggregate, _bankaccount_view: BankAccountProjection,
+    _bankaccount_agg: BankAccountAggregate, _bankaccount_view: BankAccountViewProjection,
 ) -> (HealthStatus, HashMap<HealthStatus, Vec<&'static str>>) {
     let service_statuses = vec![
         ("bank_account_aggregate", Result::<_, anyhow::Error>::Ok(())),

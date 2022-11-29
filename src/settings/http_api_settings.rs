@@ -7,7 +7,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct HttpApiSettings {
     #[serde(flatten)]
-    pub http: HttpServerSettings,
+    pub server: HttpServerSettings,
 
     #[serde(alias = "timeout_secs")]
     #[serde_as(as = "serde_with::DurationSeconds<u64>")]

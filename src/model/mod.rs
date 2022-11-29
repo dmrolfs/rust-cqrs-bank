@@ -6,7 +6,9 @@ use std::fmt;
 
 mod bank_account;
 
-pub use bank_account::{BankAccount, BankAccountAggregate, BankAccountCommand, BankAccountError};
+pub use bank_account::{
+    BankAccount, BankAccountAggregate, BankAccountCommand, BankAccountError, BankAccountEvent,
+};
 
 pub static ZERO_MONEY: Lazy<Money> = Lazy::new(|| Money::new(0, 2, Currency::Usd));
 

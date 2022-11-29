@@ -7,4 +7,7 @@ pub enum ApiError {
 
     #[error("HTTP engine error: {0}")]
     HyperHttp(#[from] hyper::Error),
+
+    #[error("failed database operation: {0} ")]
+    Sql(#[from] sqlx::Error),
 }

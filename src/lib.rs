@@ -16,4 +16,5 @@ mod settings;
 mod tracing;
 
 pub use self::tracing::{get_subscriber, get_tracing_subscriber, init_subscriber};
+pub use http_server::{run_http_server, ApiError, HttpJoinHandle};
 pub use settings::{CliOptions, CorrelationSettings, Settings};
