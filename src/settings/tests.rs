@@ -8,7 +8,6 @@ mod loading {
     use pretty_assertions::assert_eq;
     use secrecy::Secret;
     use settings_loader::common::http::HttpServerSettings;
-    use std::ops::Deref;
     use std::time::Duration;
 
     static SETTINGS: once_cell::sync::Lazy<Settings> = once_cell::sync::Lazy::new(|| Settings {

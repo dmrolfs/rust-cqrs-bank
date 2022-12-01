@@ -26,6 +26,7 @@ futures = "0.3.25"
 futures-util = "0.3.25"
 hyper = "0.14.23"
 itertools = "0.10.5"
+maplit = "1.0.2"
 money2 = { version = "0.8.3", features = ["serde", "num-traits",] }
 once_cell = "1.16.0"
 prometheus = { version = "0.13.3", features = ["process"] }

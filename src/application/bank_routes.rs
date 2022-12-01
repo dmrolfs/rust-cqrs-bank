@@ -23,7 +23,7 @@ pub fn api() -> Router<AppState> {
             "/address/:account_id",
             routing::post(update_mailing_address),
         )
-        .route("/deposit/::account_id", routing::post(deposit_amount))
+        .route("/deposit/:account_id", routing::post(deposit_amount))
         .route(
             "/atm/withdrawal/:account_id",
             routing::post(withdrawal_by_atm),

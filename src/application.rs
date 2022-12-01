@@ -5,7 +5,6 @@ use axum::response::IntoResponse;
 use axum::{BoxError, Router};
 use serde::Deserialize;
 use settings_loader::common::database::DatabaseSettings;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tokio::signal;
