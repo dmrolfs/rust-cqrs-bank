@@ -4,12 +4,22 @@ pub use trim_margin::MarginTrimmable;
 
 mod loading {
     use super::*;
+    use crate::settings::http_api_settings::RateLimitSettings;
     use pretty_assertions::assert_eq;
     use secrecy::Secret;
+    use settings_loader::common::http::HttpServerSettings;
     use std::ops::Deref;
+    use std::time::Duration;
 
     static SETTINGS: once_cell::sync::Lazy<Settings> = once_cell::sync::Lazy::new(|| Settings {
-        http_api: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+        http_api: HttpApiSettings {
+            server: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+            timeout: Duration::from_secs(2 * 60),
+            rate_limit: RateLimitSettings {
+                nr_requests: 100,
+                per_duration: Duration::from_secs(60),
+            },
+        },
         database: DatabaseSettings {
             username: "otis".to_string(),
             password: Secret::new("neo".to_string()),
@@ -17,30 +27,48 @@ mod loading {
             port: 5432,
             database_name: "bank".to_string(),
             require_ssl: true,
+            min_connections: None,
+            max_connections: Some(10),
+            idle_timeout: Some(Duration::from_secs(300)),
+            max_lifetime: Some(Duration::from_secs(1_800)),
         },
         correlation: CorrelationSettings::default(),
     });
 
     #[test]
     fn test_settings_serde_roundtrip() {
-        let yaml = r##"|application:
-                                |  host: 0.0.0.0
-                                |  port: 8000
-                                |database:
-                                |  username: user_1
-                                |  password: my_password
-                                |  host: 0.0.0.0
-                                |  port: 1234
-                                |  database_name: my_database
-                                |  require_ssl: true
-                                |machine_id: 1
-                                |node_id: 1
-                                |"##
+        let yaml = r##"|---
+            |http_api:
+            |  timeout_secs: 300
+            |  host: 0.0.0.0
+            |  port: 8000
+            |  rate_limit:
+            |    nr_requests: 100
+            |    per_secs: 60
+            |database:
+            |  username: user_1
+            |  password: my_password
+            |  host: 0.0.0.0
+            |  port: 1234
+            |  database_name: my_database
+            |  require_ssl: true
+            |  max_connections: 10
+            |  idle_timeout_secs: 300
+            |machine_id: 1
+            |node_id: 1
+            |"##
         .trim_margin()
         .unwrap();
 
         let expected = Settings {
-            http_api: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+            http_api: HttpApiSettings {
+                server: HttpServerSettings { host: "0.0.0.0".to_string(), port: 8000 },
+                timeout: Duration::from_secs(300),
+                rate_limit: RateLimitSettings {
+                    nr_requests: 100,
+                    per_duration: Duration::from_secs(60),
+                },
+            },
             database: DatabaseSettings {
                 username: "user_1".to_string(),
                 password: Secret::new("my_password".to_string()),
@@ -48,6 +76,10 @@ mod loading {
                 port: 1234,
                 database_name: "my_database".to_string(),
                 require_ssl: true,
+                min_connections: None,
+                max_connections: Some(10),
+                idle_timeout: Some(Duration::from_secs(300)),
+                max_lifetime: None,
             },
             correlation: CorrelationSettings { machine_id: 1, node_id: 1 },
         };
@@ -67,8 +99,13 @@ mod loading {
         let actual: Settings = assert_ok!(c.try_deserialize());
 
         let expected = Settings {
+            http_api: HttpApiSettings {
+                timeout: Duration::from_secs(300),
+                ..SETTINGS.http_api.clone()
+            },
             database: DatabaseSettings {
                 database_name: "stella".to_string(),
+                max_lifetime: None,
                 ..SETTINGS.database.clone()
             },
             ..SETTINGS.clone()
@@ -146,11 +183,14 @@ mod loading {
             vec![("APP_ENVIRONMENT", Some("local"))],
             || {
                 let actual: Settings = assert_ok!(Settings::load(&options));
-                assert_eq!(actual.http_api.host.as_str(), "127.0.0.1");
+                assert_eq!(actual.http_api.server.host.as_str(), "127.0.0.1");
 
                 let expected = Settings {
-                    http_api: HttpServerSettings {
-                        host: "127.0.0.1".to_string(),
+                    http_api: HttpApiSettings {
+                        server: HttpServerSettings {
+                            host: "127.0.0.1".to_string(),
+                            ..SETTINGS.http_api.server.clone()
+                        },
                         ..SETTINGS.http_api.clone()
                     },
                     database: DatabaseSettings {

@@ -1,6 +1,7 @@
-application:
+http_api:
   host: 127.0.0.1
   base_url: "http://127.0.0.1"
+
 database:
   username: snoopy
   password: foobar
