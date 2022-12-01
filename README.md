@@ -1,46 +1,127 @@
 # Rust-CQRS-EventSourcing
 
+## Information
 
+## Introduction
 
-## Getting started
+## Getting Started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Setup Rust toolchain
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+The **strongly** recommended path to install Rust on your system is through `rustup`.
 
-## Add your files
+Instructions on how to install `rustup` itself can be found at `https://rustup.rs`.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+`rustup` is more than a Rust installer -- it Rust's *toolchain management* system providing easy access to maintain the versions of core Rust tools, beyond the compiler, `rustc`. `rustup" also manages the release channel you subscribe to. 
+Although it is *highly* recommended to develop on the `stable` channel, it can be useful to temporarily run on the `nightly` channel for certain tools. `rustup` and `cargo` make that easy.
 
+The other key tool, included in the toolchain, is `cargo`. `cargo` is the *package manager* for Rust. `cargo` manages your project dependencies, via the project's `Cargo.toml` file, and offers project lifecycle commands you would expect, such as `build`, `test`, `run`. It's like the maven or sbt for Rust and has the advantage of learning lessons from those earlier tools.
+
+### Setup faste linking
+
+To speed up the linking phase you have to install an alternative linker on your machine, corresponding to configuration specified in `Cargo.toml`:
+
+#### On Windows
+```shell
+cargo install -f cargo-binutils
+rustup component add llvm-tools-preview
 ```
-cd existing_repo
-git remote add origin https://main.gitlab.in.here.com/olp/narya/rust-cqrs-eventsourcing.git
-git branch -M master
-git push -uf origin master
+
+#### On Linux:
+
+- Ubuntu
+```shell
+sudo apt-get install lld clang
 ```
 
-## Integrate with your tools
+- Arch,
+```shell
+sudo pacman -S lld clang
+```
 
-- [ ] [Set up project integrations](https://main.gitlab.in.here.com/olp/narya/rust-cqrs-eventsourcing/-/settings/integrations)
+#### On MacOS
+```shell
+brew install michaeleisel/zld/zld
+```
 
-## Collaborate with your team
+## How to build the project
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+The project can be built with the following command:
 
-## Test and Deploy
+```shell
+cargo build
+```
+this will by default build the project in Debug mode, to build in release mode
+```shell
+cargo build --release
+```
 
-Use the built-in continuous integration in GitLab.
+During development, you don't need to fully build the binary and can perform a compilation check, which is much quicker:
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```shell
+cargo check
+```
+or watch and check after file changes:
+```shell
+cargo watch
+```
+
+If no errors, this will generate the `bankaccount` server binary in `target/[debug/release]/bankaccount`. This is a normal executable and can be run in the command line. (For a Windows target, bankaccount.exe is produced.)
+
+```shell
+target/debug/bankaccount
+```
+
+## Running the server using `cargo`
+
+During development, you may also run the debug or release versions via `cargo`. 
+```shell
+cargo run
+```
+
+```shell
+cargo run --release
+```
+
+Environment variables can be provided for execution before the `cargo` command. Also, command-line arguments may be provided after `--`; e.g.,
+
+```shell
+RUST_LOG="debug" APP_ENVIRONMENT="local" cargo run -- --secrets ./resources/secrets.yaml
+```
+
+or
+
+```shell
+cargo run -- --help
+```
+
+### Try it out
+
+In the project directory, we'll build and the release version of the server. This will take longer to build because `cargo` will build the optimized version, stripping out debug symbols and peforming additional optimizations. This will shrink the binary size and speed execution.
+
+Building the debug version (minus the `--release` flag) builds much, much quicker. 
+From the project root directory:
+
+```shell
+cargo run --release -- --secrets ./resources/secrets.yaml
+```
+
+You'll see a bunch of log lines. The last one should say something like "... API listening on 0.0.0.0:8000 ..."
+
+Now in another terminal, perform a health check on the server:
+
+```shell
+curl --location --request GET 'localhost:8000/api/v1/health'
+```
+returns HTTP 200 and `{"status":"Up"}` payload.
+
+## How To run unit and integration tests
+
+```shell
+cargo test
+```
+
+this will build and run all the tests, including unit/integration/documentation tests.
 
 ***
 

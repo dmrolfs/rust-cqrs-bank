@@ -7,6 +7,7 @@ use serde::Deserialize;
 use settings_loader::common::database::DatabaseSettings;
 use sqlx::PgPool;
 use std::net::TcpListener;
+use strum::Display;
 use tokio::signal;
 use tokio::task::JoinHandle;
 use tower::ServiceBuilder;
@@ -25,9 +26,17 @@ pub use result::HttpResult;
 
 pub type HttpJoinHandle = JoinHandle<Result<(), ApiError>>;
 
-#[derive(Debug, PartialEq, Eq)]
-enum Version {
+#[derive(Debug, Display, PartialEq, Eq)]
+#[strum(serialize_all = "snake_case")]
+pub enum Version {
     V1,
+}
+
+impl Version {
+    #[inline]
+    pub const fn latest() -> Self {
+        Self::V1
+    }
 }
 
 pub struct Application {

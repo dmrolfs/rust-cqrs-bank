@@ -45,15 +45,15 @@ struct AccountApplication {
 
 #[tracing::instrument(level = "trace", skip(agg))]
 async fn create_bank_account(
-    State(agg): State<BankAccountAggregate>, Json(application): Json<AccountApplication>,
+    State(agg): State<BankAccountAggregate>, Json(account_application): Json<AccountApplication>,
 ) -> impl IntoResponse {
     let aggregate_id = bank_account::generate_id();
     let account_id: AccountId = aggregate_id.clone().into();
     let command = BankAccountCommand::OpenAccount {
         account_id: account_id.clone(),
-        user_name: application.user_name,
-        mailing_address: application.mailing_address,
-        email: application.email,
+        user_name: account_application.user_name,
+        mailing_address: account_application.mailing_address,
+        email: account_application.email,
     };
     let meta: MetaData<BankAccount> = MetaData::default();
 
