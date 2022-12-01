@@ -2,9 +2,13 @@
 machine_id: 1
 node_id: 1
 
-application:
+http_api:
+  timeout_secs: 300
   host: 0.0.0.0
   port: 8000
+  rate_limit:
+    nr_requests: 100
+    per_secs: 60
 
 database:
   username: otis
@@ -13,3 +17,5 @@ database:
   host: localhost
   database_name: stella
   require_ssl: true
+  max_connections: 10
+  idle_timeout_secs: 300
