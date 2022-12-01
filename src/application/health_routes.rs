@@ -1,4 +1,4 @@
-use crate::http_server::app_state::AppState;
+use crate::application::app_state::AppState;
 use crate::model::BankAccountAggregate;
 use crate::queries::BankAccountViewProjection;
 use axum::extract::State;

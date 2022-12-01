@@ -19,6 +19,11 @@ pub type BankAccountAggregate = Arc<PostgresCqrs<BankAccount>>;
 
 pub const AGGREGATE_TYPE: &str = "account";
 
+#[inline]
+pub fn generate_id() -> Id<BankAccount> {
+    pretty_snowflake::generator::next_id()
+}
+
 #[derive(Debug, Default, Clone, Label, PartialEq, Serialize, Deserialize)]
 pub struct BankAccount {
     state: BankAccountState,

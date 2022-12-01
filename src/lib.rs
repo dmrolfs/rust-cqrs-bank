@@ -7,14 +7,13 @@
     rust_2018_idioms
 )]
 
+pub mod application;
 mod errors;
-mod http_server;
 mod model;
 mod queries;
 mod services;
 mod settings;
-mod tracing;
+pub mod tracing;
 
-pub use self::tracing::{get_subscriber, get_tracing_subscriber, init_subscriber};
-pub use http_server::{run_http_server, ApiError, HttpJoinHandle};
+pub use application::{ApiError, Application};
 pub use settings::{CliOptions, CorrelationSettings, Settings};

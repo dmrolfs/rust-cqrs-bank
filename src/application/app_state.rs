@@ -1,4 +1,4 @@
-use crate::http_server::ApiError;
+use crate::application::ApiError;
 use crate::model::{BankAccount, BankAccountAggregate};
 use crate::queries::{AccountQuery, BankAccountViewProjection, EventTracingQuery};
 use crate::services::{BankAccountServices, HappyPathBankAccountServices};
@@ -6,17 +6,15 @@ use crate::Settings;
 use axum::extract::FromRef;
 use cqrs_es::Query;
 use postgres_es::PostgresViewRepository;
+use settings_loader::common::database::DatabaseSettings;
+use sqlx::PgPool;
 use std::fmt;
 use std::sync::Arc;
 
 #[tracing::instrument(level = "debug")]
-pub async fn initialize_app_state(settings: &Settings) -> Result<AppState, ApiError> {
-    let connection_options = settings.database.pg_connect_options_with_db();
-    let pool = settings
-        .database
-        .pg_pool_options()
-        .connect_with(connection_options)
-        .await?;
+pub async fn initialize_app_state(pool: PgPool) -> Result<AppState, ApiError> {
+    // let connection_options = settings.pg_connect_options_with_db();
+    // let pool = settings.pg_pool_options().connect_with(connection_options).await?;
 
     let tracing_query = EventTracingQuery;
     let account_view_projection =

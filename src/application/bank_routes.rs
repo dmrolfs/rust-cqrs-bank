@@ -1,6 +1,9 @@
-use crate::http_server::app_state::AppState;
+use crate::application::app_state::AppState;
+use crate::errors::BankError;
+use crate::model::{bank_account, BankAccount};
 use crate::model::{
-    AccountId, AtmId, BankAccountAggregate, CheckNumber, EmailAddress, MailingAddress,
+    AccountId, AtmId, BankAccountAggregate, BankAccountCommand, CheckNumber, EmailAddress,
+    MailingAddress,
 };
 use crate::queries::BankAccountViewProjection;
 use axum::extract::{Path, State};
@@ -8,6 +11,8 @@ use axum::response::IntoResponse;
 use axum::routing;
 use axum::{Json, Router};
 use money2::Money;
+use pretty_snowflake::envelope::MetaData;
+use serde::Deserialize;
 
 pub fn api() -> Router<AppState> {
     Router::new()
@@ -30,9 +35,35 @@ pub fn api() -> Router<AppState> {
         .route("/balance", routing::get(serve_all_by_balance))
 }
 
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct AccountApplication {
+    user_name: String,
+    mailing_address: MailingAddress,
+    email: EmailAddress,
+}
+
 #[tracing::instrument(level = "trace", skip(agg))]
-async fn create_bank_account(State(agg): State<BankAccountAggregate>) -> impl IntoResponse {
-    todo!()
+async fn create_bank_account(
+    State(agg): State<BankAccountAggregate>, Json(application): Json<AccountApplication>,
+) -> impl IntoResponse {
+    let aggregate_id = bank_account::generate_id();
+    let account_id: AccountId = aggregate_id.clone().into();
+    let command = BankAccountCommand::OpenAccount {
+        account_id: account_id.clone(),
+        user_name: application.user_name,
+        mailing_address: application.mailing_address,
+        email: application.email,
+    };
+    let meta: MetaData<BankAccount> = MetaData::default();
+
+    let outcome: Result<_, BankError> = agg
+        .execute_with_metadata(aggregate_id.pretty(), command, meta.into())
+        .await
+        .map_err(|err| err.into())
+        .map(|_| Json(account_id));
+
+    outcome
 }
 
 #[tracing::instrument(level = "trace", skip(agg))]

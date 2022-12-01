@@ -4,6 +4,10 @@ use axum::http::{StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::{BoxError, Router};
 use serde::Deserialize;
+use settings_loader::common::database::DatabaseSettings;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
+use std::net::TcpListener;
 use tokio::signal;
 use tokio::task::JoinHandle;
 use tower::ServiceBuilder;
@@ -12,10 +16,13 @@ use tower_http::ServiceBuilderExt;
 
 mod app_state;
 mod bank_routes;
-mod errors;
+pub mod errors;
 mod health_routes;
+mod result;
 
+use crate::settings::HttpApiSettings;
 pub use errors::ApiError;
+pub use result::HttpResult;
 
 pub type HttpJoinHandle = JoinHandle<Result<(), ApiError>>;
 
@@ -24,14 +31,69 @@ enum Version {
     V1,
 }
 
+pub struct Application {
+    port: u16,
+    server: HttpJoinHandle,
+}
+
+impl Application {
+    #[tracing::instrument(level = "debug", skip(settings))]
+    pub async fn build(settings: &Settings) -> Result<Self, ApiError> {
+        let connection_pool = get_connection_pool(&settings.database);
+        let address = settings.http_api.server.address();
+        let listener = tokio::net::TcpListener::bind(&address).await?;
+        tracing::info!(
+            "{:?} API listening on {address}: {listener:?}",
+            std::env::current_exe()
+        );
+        let std_listener = listener.into_std()?;
+        let port = std_listener.local_addr()?.port();
+
+        let server = run_http_server(
+            std_listener,
+            connection_pool,
+            &RunParameters::from_settings(settings),
+        )
+        .await?;
+
+        Ok(Self { port, server })
+    }
+
+    pub const fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub async fn run_until_stopped(self) -> Result<(), ApiError> {
+        self.server.await?
+    }
+}
+
+pub fn get_connection_pool(settings: &DatabaseSettings) -> PgPool {
+    let connection_options = settings.pg_connect_options_with_db();
+    settings.pg_pool_options().connect_lazy_with(connection_options)
+}
+
+#[derive(Debug, Clone)]
+pub struct RunParameters {
+    pub http_api: HttpApiSettings,
+}
+
+impl RunParameters {
+    pub fn from_settings(settings: &Settings) -> Self {
+        Self { http_api: settings.http_api.clone() }
+    }
+}
+
 #[tracing::instrument(level = "trace")]
-pub async fn run_http_server(settings: &Settings) -> Result<HttpJoinHandle, ApiError> {
-    let state = app_state::initialize_app_state(settings).await?;
+pub async fn run_http_server(
+    listener: TcpListener, db_pool: PgPool, params: &RunParameters,
+) -> Result<HttpJoinHandle, ApiError> {
+    let state = app_state::initialize_app_state(db_pool).await?;
 
     let middleware_stack = ServiceBuilder::new()
-        // .rate_limit(settings.rate_limit.nr_requests, settings.rate_limit.per_duration)
+        // .rate_limit(params.rate_limit.nr_requests, params.rate_limit.per_duration)
         .layer(HandleErrorLayer::new(handle_api_error))
-        .timeout(settings.http_api.timeout)
+        .timeout(params.http_api.timeout)
         .compression()
         .layer(
             TraceLayer::new_for_http()
@@ -39,8 +101,8 @@ pub async fn run_http_server(settings: &Settings) -> Result<HttpJoinHandle, ApiE
                 .on_response(DefaultOnResponse::new().include_headers(true))
         )
         // .layer(tower::limit::RateLimitLayer::new(
-        //     settings.rate_limit.nr_requests,
-        //     settings.rate_limit.per_duration,
+        //     params.rate_limit.nr_requests,
+        //     params.rate_limit.per_duration,
         // ))
         // .set_x_request_id(unimplemented!())
         .propagate_x_request_id();
@@ -55,16 +117,8 @@ pub async fn run_http_server(settings: &Settings) -> Result<HttpJoinHandle, ApiE
         .fallback(fallback)
         .layer(middleware_stack);
 
-    let address = settings.http_api.server.address();
-
     let handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(&address).await?;
-        tracing::info!(
-            "{:?} API listening on {address}: {listener:?}",
-            std::env::current_exe()
-        );
-        let std_listener = listener.into_std()?;
-        let builder = axum::Server::from_tcp(std_listener)?;
+        let builder = axum::Server::from_tcp(listener)?;
         let server = builder.serve(app.into_make_service());
         let graceful = server.with_graceful_shutdown(shutdown_signal());
         graceful.await?;

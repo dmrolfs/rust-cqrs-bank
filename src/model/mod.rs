@@ -1,14 +1,16 @@
 use money2::{Currency, Money};
 use once_cell::sync::Lazy;
-use pretty_snowflake::{AlphabetCodec, Id, IdPrettifier, Label, Labeling};
+use pretty_snowflake::{Id, Label, Labeling};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-mod bank_account;
+pub mod bank_account;
 
 pub use bank_account::{
     BankAccount, BankAccountAggregate, BankAccountCommand, BankAccountError, BankAccountEvent,
 };
+
+pub type IdGenerator<T> = pretty_snowflake::generator::CommonIdGenerator<T>;
 
 pub static ZERO_MONEY: Lazy<Money> = Lazy::new(|| Money::new(0, 2, Currency::Usd));
 
@@ -33,14 +35,18 @@ impl fmt::Display for AccountId {
     }
 }
 
-static PRETTIFIER: Lazy<IdPrettifier<AlphabetCodec>> = Lazy::new(IdPrettifier::default);
+impl From<Id<BankAccount>> for AccountId {
+    fn from(id: Id<BankAccount>) -> Self {
+        Self::new(id.num())
+    }
+}
 
 impl From<AccountId> for Id<BankAccount> {
     fn from(account_id: AccountId) -> Self {
         Self::new(
             <BankAccount as Label>::labeler().label(),
             account_id.as_num(),
-            &PRETTIFIER,
+            &pretty_snowflake::generator::prettifier(),
         )
     }
 }
