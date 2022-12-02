@@ -17,7 +17,17 @@ Although it is *highly* recommended to develop on the `stable` channel, it can b
 
 The other key tool, included in the toolchain, is `cargo`. `cargo` is the *package manager* for Rust. `cargo` manages your project dependencies, via the project's `Cargo.toml` file, and offers project lifecycle commands you would expect, such as `build`, `test`, `run`. It's like the maven or sbt for Rust and has the advantage of learning lessons from those earlier tools.
 
-### Setup faste linking
+### Sqlx
+`sqlx` is the database query engine used in the demo. It's a leading SQL Rust library, noted for compile-time safety and non-blocking async support.   
+`sqlx` provides a command-line interface, `sqlx-cli`, to manage database migrations. Install the CLI with:
+
+```shell
+cargo install --version="~0.6" sqlx-cli --no-default-features --features rustls,postgres
+```
+
+Run `sqlx --help` to check that everything is working as expected.
+
+### Setup faster linking
 
 To speed up the linking phase you have to install an alternative linker on your machine, corresponding to configuration specified in `Cargo.toml`:
 
@@ -122,6 +132,11 @@ cargo test
 ```
 
 this will build and run all the tests, including unit/integration/documentation tests.
+
+## Database setup
+
+Two scripts under `./scripts` directory can be used to setup up the database in a docker container.
+
 
 ***
 

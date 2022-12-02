@@ -1,8 +1,12 @@
 [package]
 name = "bankaccount"
 version = "0.1.0"
+authors = ["Damon Rolfs <damon.rolfs@here.com>"]
 edition = "2021"
 repository = "https://main.gitlab.in.here.com/olp/narya/rust-cqrs-eventsourcing"
+readme = "README.md"
+keywords = ["cqrs", "eventsourced"]
+categories = ["demo", "microservice"]
 
 [[bin]]
 name = "bankaccount"
@@ -31,13 +35,12 @@ money2 = { version = "0.8.3", features = ["serde", "num-traits",] }
 once_cell = "1.16.0"
 prometheus = { version = "0.13.3", features = ["process"] }
 prometheus-static-metric = "0.5.1"
-reqwest = { version = "0.11", features = ["json", "rustls-tls"]}
+reqwest = { version = "0.11.13", features = ["json", "rustls-tls"] }
 secrecy = "0.8.0"
 serde = "1.0.148"
 serde_json = "1.0.89"
 serde_yaml = "0.9.14"
 serde_with = { version = "2.1.0", features = ["chrono", "json", "macros"] }
-sqlx = { version = "0.6.2", features = ["postgres", "runtime-tokio-rustls", "json"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 thiserror = "1.0.37"
@@ -53,8 +56,24 @@ trim-margin = "0.1.0"
 url = { version = "2.3.1", features = ["serde"] }
 validator = { version = "0.16.0", features = ["derive"] }
 
+[dependencies.sqlx]
+version = "0.6.2"
+default-features = false
+features = [
+    "postgres",
+    "runtime-tokio-rustls",
+    "json",
+    "macros",
+    "bigdecimal",
+    "uuid",
+    "chrono",
+    "migrate",
+    "offline"
+]
+
 
 [dev-dependencies]
+claim = { git = "https://github.com/dmrolfs/rust-claim", branch = "bump-autocfg-version" }
 fake = { version = "2.5.0", features = ["chrono"] }
 pretty_assertions = "1.3.0"
 serde_test = "1.0.148"

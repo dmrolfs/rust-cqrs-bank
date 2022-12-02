@@ -11,9 +11,6 @@ use std::sync::Arc;
 
 #[tracing::instrument(level = "debug")]
 pub async fn initialize_app_state(pool: PgPool) -> Result<AppState, ApiError> {
-    // let connection_options = settings.pg_connect_options_with_db();
-    // let pool = settings.pg_pool_options().connect_with(connection_options).await?;
-
     let tracing_query = EventTracingQuery;
     let account_view_projection =
         Arc::new(PostgresViewRepository::new("account_query", pool.clone()));

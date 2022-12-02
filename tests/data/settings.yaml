@@ -11,11 +11,11 @@ http_api:
     per_secs: 60
 
 database:
-  username: otis
-  password: neo
+  username: postgres
+  password: demo_pass
   port: 5432
   host: localhost
-  database_name: stella
-  require_ssl: true
+  database_name: bank
+  require_ssl: false
   max_connections: 10
   idle_timeout_secs: 300

@@ -3,6 +3,6 @@ http_api:
   base_url: "http://127.0.0.1"
 
 database:
-  username: postgres
-  password: demo_pass
+  username: snoopy
+  password: zen_master_12
   require_ssl: false

@@ -10,8 +10,6 @@ pub use bank_account::{
     BankAccount, BankAccountAggregate, BankAccountCommand, BankAccountError, BankAccountEvent,
 };
 
-pub type IdGenerator<T> = pretty_snowflake::generator::CommonIdGenerator<T>;
-
 pub static ZERO_MONEY: Lazy<Money> = Lazy::new(|| Money::new(0, 2, Currency::Usd));
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

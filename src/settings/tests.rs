@@ -103,7 +103,10 @@ mod loading {
                 ..SETTINGS.http_api.clone()
             },
             database: DatabaseSettings {
-                database_name: "stella".to_string(),
+                database_name: "bank".to_string(),
+                username: "postgres".to_string(),
+                password: Secret::new("demo_pass".to_string()),
+                require_ssl: false,
                 max_lifetime: None,
                 ..SETTINGS.database.clone()
             },
@@ -145,7 +148,7 @@ mod loading {
                     correlation: CorrelationSettings { machine_id: 17, node_id: 13 },
                     database: DatabaseSettings {
                         username: "postgres".to_string(),
-                        password: Secret::new("password".to_string()),
+                        password: Secret::new("demo_pass".to_string()),
                         database_name: "bank".to_string(),
                         require_ssl: false,
                         ..SETTINGS.database.clone()
@@ -167,7 +170,7 @@ mod loading {
         let _ = main_span.enter();
 
         let options = CliOptions {
-            settings_search_path: Some("./resources".into()),
+            settings_search_path: Some("./tests/data".into()),
             ..CliOptions::default()
         };
         // let before_env = Settings::load(&options);
@@ -194,7 +197,7 @@ mod loading {
                     },
                     database: DatabaseSettings {
                         username: "snoopy".to_string(),
-                        password: Secret::new("foobar".to_string()),
+                        password: Secret::new("zen_master_12".to_string()),
                         require_ssl: false,
                         ..SETTINGS.database.clone()
                     },
