@@ -8,6 +8,24 @@ use std::borrow::Cow;
 
 pub type HttpResult = Result<Response, BankError>;
 
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct OptionalResult<T>(pub Option<T>);
+
+impl<T: IntoResponse> IntoResponse for OptionalResult<T> {
+    fn into_response(self) -> Response {
+        self.0
+            .map(|result| (StatusCode::OK, result).into_response())
+            .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response())
+    }
+}
+
+impl<T: IntoResponse> From<Option<T>> for OptionalResult<T> {
+    fn from(result: Option<T>) -> Self {
+        OptionalResult(result)
+    }
+}
+
 impl IntoResponse for BankError {
     fn into_response(self) -> Response {
         let http_error = HttpError::from_error(self.into());

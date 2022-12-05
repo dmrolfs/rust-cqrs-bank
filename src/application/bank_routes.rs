@@ -1,4 +1,5 @@
 use crate::application::app_state::AppState;
+use crate::application::result::OptionalResult;
 use crate::errors::BankError;
 use crate::model::{bank_account, BankAccount};
 use crate::model::{
@@ -10,8 +11,10 @@ use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use axum::routing;
 use axum::{Json, Router};
+use cqrs_es::persist::ViewRepository;
 use money2::Money;
 use pretty_snowflake::envelope::MetaData;
+use pretty_snowflake::Id;
 use serde::Deserialize;
 
 pub fn api() -> Router<AppState> {
@@ -63,11 +66,18 @@ async fn create_bank_account(
         .map(|_| Json(account_id))
 }
 
-#[tracing::instrument(level = "trace", skip(agg))]
+#[tracing::instrument(level = "trace", skip(view_repo))]
 async fn serve_bank_account(
-    Path(account_id): Path<AccountId>, State(agg): State<BankAccountAggregate>,
+    Path(account_id): Path<AccountId>, State(view_repo): State<BankAccountViewProjection>,
 ) -> impl IntoResponse {
-    todo!()
+    let aggregate_id: Id<BankAccount> = account_id.into();
+    let view = view_repo
+        .load(aggregate_id.pretty())
+        .await
+        .map_err::<BankError, _>(|err| BankError::DatabaseConnection { source: err.into() })
+        .map(|v| OptionalResult(v.map(Json)));
+
+    view
 }
 
 #[tracing::instrument(level = "trace", skip(agg))]
