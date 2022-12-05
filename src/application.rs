@@ -121,7 +121,7 @@ pub async fn run_http_server(
         .with_state(state);
 
     let app = Router::new()
-        .nest("/api/:version", api_routes)
+        .nest("/api/v1", api_routes)
         .fallback(fallback)
         .layer(middleware_stack);
 

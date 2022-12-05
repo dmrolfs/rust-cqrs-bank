@@ -7,7 +7,7 @@ use crate::model::{
     MailingAddress,
 };
 use crate::queries::BankAccountViewProjection;
-use axum::extract::{Path, State};
+use axum::extract::{rejection::PathRejection, Path, State};
 use axum::response::IntoResponse;
 use axum::routing;
 use axum::{Json, Router};
@@ -46,14 +46,14 @@ struct AccountApplication {
     email: EmailAddress,
 }
 
-#[tracing::instrument(level = "trace", skip(agg))]
+#[tracing::instrument(level = "debug", skip(agg))]
 async fn create_bank_account(
     State(agg): State<BankAccountAggregate>, Json(account_application): Json<AccountApplication>,
 ) -> impl IntoResponse {
     let aggregate_id = bank_account::generate_id();
     let account_id: AccountId = aggregate_id.clone().into();
     let command = BankAccountCommand::OpenAccount {
-        account_id: account_id.clone(),
+        account_id,
         user_name: account_application.user_name,
         mailing_address: account_application.mailing_address,
         email: account_application.email,
@@ -66,17 +66,21 @@ async fn create_bank_account(
         .map(|_| Json(account_id))
 }
 
-#[tracing::instrument(level = "trace", skip(view_repo))]
+#[tracing::instrument(level = "debug", skip(view_repo))]
 async fn serve_bank_account(
-    Path(account_id): Path<AccountId>, State(view_repo): State<BankAccountViewProjection>,
+    account_id: Result<Path<AccountId>, PathRejection>,
+    State(view_repo): State<BankAccountViewProjection>,
 ) -> impl IntoResponse {
+    let Path(account_id) = account_id.map_err(|err| BankError::User(err.into()))?;
     let aggregate_id: Id<BankAccount> = account_id.into();
+    tracing::debug!("loading account view for aggregate: {aggregate_id}");
     let view = view_repo
         .load(aggregate_id.pretty())
         .await
         .map_err::<BankError, _>(|err| BankError::DatabaseConnection { source: err.into() })
         .map(|v| OptionalResult(v.map(Json)));
 
+    tracing::debug!("view response: {view:?}");
     view
 }
 

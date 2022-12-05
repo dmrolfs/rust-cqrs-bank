@@ -22,7 +22,7 @@ impl<T: IntoResponse> IntoResponse for OptionalResult<T> {
 
 impl<T: IntoResponse> From<Option<T>> for OptionalResult<T> {
     fn from(result: Option<T>) -> Self {
-        OptionalResult(result)
+        Self(result)
     }
 }
 

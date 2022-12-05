@@ -1,10 +1,11 @@
 use axum::http::StatusCode;
 use bankaccount::application::Version;
 pub use bankaccount::tracing::TEST_TRACING;
+use bankaccount::AccountId;
 use claim::assert_ok;
 use once_cell::sync::Lazy;
 use pretty_assertions::assert_eq;
-use pretty_snowflake::{Id, LabeledRealtimeIdGenerator};
+use pretty_snowflake::LabeledRealtimeIdGenerator;
 use reqwest::header;
 use settings_loader::common::database::DatabaseSettings;
 use settings_loader::SettingsLoader;
@@ -31,7 +32,6 @@ pub async fn spawn_app(version: Version) -> TestApp {
     };
 
     let db_name = ID_GEN.read().unwrap().next_id().pretty().to_string();
-    // let db_name = pretty_snowflake::generator::next_id::<()>().pretty().to_string();
     tracing::info!(%db_name, "DATABASE name is generated");
     settings.database.database_name = db_name.clone();
     assert_eq!(settings.database.database_name, db_name);
@@ -111,13 +111,24 @@ pub struct TestApp {
 }
 
 impl TestApp {
+    #[inline]
+    pub fn bank_url(&self) -> String {
+        format!("{}/api/{}/bank", self.http_address, self.version)
+    }
+
     #[tracing::instrument(skip(self))]
     pub async fn post_create_bank_account(&self, body: serde_json::Value) -> reqwest::Response {
         let my_request = self
             .api_client
-            .post(&format!("{}/api/{}/bank/", self.http_address, self.version))
+            .post(&format!("{}", self.bank_url()))
             .header(header::CONTENT_TYPE, "application/json")
             .json(&body);
+        assert_ok!(my_request.send().await)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn get_serve_bank_account(&self, account_id: AccountId) -> reqwest::Response {
+        let my_request = self.api_client.get(&format!("{}/{}", self.bank_url(), account_id));
         assert_ok!(my_request.send().await)
     }
 }

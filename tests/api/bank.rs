@@ -1,8 +1,8 @@
 use crate::helpers::spawn_latest_app;
 use axum::http::StatusCode;
-use bankaccount::{AccountId, BankAccount};
+use bankaccount::{AccountId, BankAccount, BankAccountView};
 use claim::{assert_ok, assert_some};
-use once_cell::sync::Lazy;
+use money2::{Currency, Money};
 use pretty_assertions::{assert_eq, assert_ne};
 use pretty_snowflake::Id;
 use reqwest::Response;
@@ -123,4 +123,27 @@ async fn create_account_fails_if_there_is_a_fatal_database_error() {
     let response = app.post_create_bank_account(body).await;
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test]
+async fn account_view_updates_with_commands() {
+    let app = spawn_latest_app().await;
+    let body = create_account_body(Some("stella"), None, None);
+
+    let response = app.post_create_bank_account(body).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let account_id: AccountId = assert_ok!(response.json().await);
+
+    let response = app.get_serve_bank_account(account_id).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let account_view: BankAccountView = assert_ok!(response.json().await);
+    assert_eq!(
+        account_view,
+        BankAccountView {
+            account_id: Some(account_id),
+            balance: Money::new(0, 2, Currency::Usd),
+            written_checks: vec![],
+            ledger: vec![],
+        }
+    )
 }

@@ -143,7 +143,7 @@ impl AggregateState for QuiescentBankAccount {
         match event {
             BankAccountEvent::AccountOpened { account_id, user_name, mailing_address, email } => {
                 Some(BankAccountState::Active(ActiveBankAccount {
-                    id: account_id.clone().into(),
+                    id: account_id.into(),
                     account_id,
                     user_name,
                     balance: Money::default(),
@@ -282,10 +282,7 @@ impl ActiveBankAccount {
         if *ZERO_MONEY <= balance {
             Ok(balance)
         } else {
-            Err(BankAccountError::InsufficientFunds(
-                self.account_id.clone(),
-                amount,
-            ))
+            Err(BankAccountError::InsufficientFunds(self.account_id, amount))
         }
     }
 }

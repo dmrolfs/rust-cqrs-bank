@@ -19,20 +19,17 @@ pub type AccountQuery = GenericQuery<BankAccountViewRepository, BankAccountView,
 /// reflect the response that will be returned to a user.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BankAccountView {
-    account_id: Option<AccountId>,
-    balance: Money,
-    written_checks: Vec<CheckNumber>,
-    ledger: Vec<LedgerEntry>,
+    pub account_id: Option<AccountId>,
+    pub balance: Money,
+    pub written_checks: Vec<CheckNumber>,
+    pub ledger: Vec<LedgerEntry>,
 }
 
 impl Default for BankAccountView {
     fn default() -> Self {
-        let mut balance = Money::default();
-        balance.currency = Currency::Usd;
-
         Self {
             account_id: None,
-            balance,
+            balance: Money { currency: Currency::Usd, ..Default::default() },
             written_checks: Vec::default(),
             ledger: Vec::default(),
         }
@@ -56,7 +53,7 @@ impl View<BankAccount> for BankAccountView {
     fn update(&mut self, event: &EventEnvelope<BankAccount>) {
         match &event.payload {
             BankAccountEvent::AccountOpened { account_id, .. } => {
-                self.account_id = Some(account_id.clone());
+                self.account_id = Some(*account_id);
             },
 
             BankAccountEvent::BalanceDeposited { amount } => {
