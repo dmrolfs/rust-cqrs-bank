@@ -3,7 +3,7 @@ use crate::model::{BankAccountEvent, CheckNumber};
 use async_trait::async_trait;
 use cqrs_es::persist::GenericQuery;
 use cqrs_es::{EventEnvelope, Query, View};
-use money2::Money;
+use money2::{Currency, Money};
 use postgres_es::PostgresViewRepository;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -17,12 +17,26 @@ pub type AccountQuery = GenericQuery<BankAccountViewRepository, BankAccountView,
 
 /// the view for a BankAccount query, for a standard http application this should be designed to
 /// reflect the response that will be returned to a user.
-#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BankAccountView {
     account_id: Option<AccountId>,
     balance: Money,
     written_checks: Vec<CheckNumber>,
     ledger: Vec<LedgerEntry>,
+}
+
+impl Default for BankAccountView {
+    fn default() -> Self {
+        let mut balance = Money::default();
+        balance.currency = Currency::Usd;
+
+        Self {
+            account_id: None,
+            balance,
+            written_checks: Vec::default(),
+            ledger: Vec::default(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,16 +81,22 @@ impl View<BankAccount> for BankAccountView {
 }
 
 /// A simple CQRS qeury that traces each event for debugging purposes.
+#[derive(Debug)]
 pub struct EventTracingQuery;
 
 #[async_trait]
 impl Query<BankAccount> for EventTracingQuery {
+    #[tracing::instrument(level = "debug")]
     async fn dispatch(&self, aggregate_id: &str, events: &[EventEnvelope<BankAccount>]) {
         for event in events {
             match serde_json::to_string_pretty(&event.payload) {
-                Ok(payload) => tracing::info!("{aggregate_id}-{}: {payload}", event.sequence),
+                Ok(payload) => {
+                    tracing::info!("EVENT_TRACE: {aggregate_id}-{}: {payload}", event.sequence)
+                },
                 Err(err) => {
-                    tracing::error!("failed to convert bank account event to json: {err:?}")
+                    tracing::error!(
+                        "EVENT_TRACE: failed to convert bank account event to json: {err:?}"
+                    )
                 },
             }
         }

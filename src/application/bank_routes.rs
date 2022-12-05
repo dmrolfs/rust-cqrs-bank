@@ -57,13 +57,10 @@ async fn create_bank_account(
     };
     let meta: MetaData<BankAccount> = MetaData::default();
 
-    let outcome: Result<_, BankError> = agg
-        .execute_with_metadata(aggregate_id.pretty(), command, meta.into())
+    agg.execute_with_metadata(aggregate_id.pretty(), command, meta.into())
         .await
-        .map_err(|err| err.into())
-        .map(|_| Json(account_id));
-
-    outcome
+        .map_err::<BankError, _>(|err| err.into())
+        .map(|_| Json(account_id))
 }
 
 #[tracing::instrument(level = "trace", skip(agg))]

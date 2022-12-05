@@ -12,7 +12,7 @@ pub use bank_account::{
 
 pub static ZERO_MONEY: Lazy<Money> = Lazy::new(|| Money::new(0, 2, Currency::Usd));
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct AccountId(i64);
@@ -130,5 +130,25 @@ impl CheckNumber {
 impl fmt::Display for CheckNumber {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use claim::assert_ok;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_account_id_to_aggregate_id_conversion_works() {
+        let aggregate_id = bank_account::generate_id();
+        let account_id: AccountId = aggregate_id.clone().into();
+        assert_eq!(account_id, AccountId(aggregate_id.num()));
+        assert_eq!(account_id.0, aggregate_id.num());
+
+        let actual: Id<BankAccount> = account_id.into();
+        assert_eq!(actual, aggregate_id);
+        assert_eq!(actual.num(), aggregate_id.num());
+        assert_eq!(actual.pretty(), aggregate_id.pretty());
     }
 }

@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, spawn_latest_app};
+use crate::helpers::spawn_latest_app;
 use axum::http::StatusCode;
 use pretty_assertions::assert_eq;
 use tokio_test::assert_ok;
