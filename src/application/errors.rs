@@ -2,6 +2,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
+    #[error("Invalid URL path input: {0}")]
+    Path(#[from] axum::extract::rejection::PathRejection),
+
+    #[error("Invalid JSON payload: {0}")]
+    Json(#[from] axum::extract::rejection::JsonRejection),
+
     #[error("{source}")]
     IO {
         #[from]

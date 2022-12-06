@@ -136,7 +136,6 @@ impl fmt::Display for CheckNumber {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claim::assert_ok;
     use pretty_assertions::assert_eq;
 
     #[test]

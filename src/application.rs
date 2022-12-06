@@ -21,6 +21,7 @@ mod health_routes;
 mod result;
 
 use crate::settings::HttpApiSettings;
+pub use app_state::{AppState, ACCOUNT_QUERY_VIEW, ACCOUNT_QUERY_VIEW_PAYLOAD};
 pub use errors::ApiError;
 pub use result::HttpResult;
 

@@ -1,6 +1,8 @@
-use crate::{application, model};
+use crate::{application, model, ApiError};
 use anyhow::anyhow;
+use cqrs_es::persist::PersistenceError;
 use cqrs_es::AggregateError;
+use sqlx::Error;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -44,5 +46,29 @@ where
             },
             AggregateError::UnexpectedError(err) => Self::Unexpected { source: anyhow!(err) },
         }
+    }
+}
+
+impl From<PersistenceError> for BankError {
+    fn from(error: PersistenceError) -> Self {
+        Self::DatabaseConnection { source: error.into() }
+    }
+}
+
+impl From<axum::extract::rejection::PathRejection> for BankError {
+    fn from(error: axum::extract::rejection::PathRejection) -> Self {
+        ApiError::Path(error).into()
+    }
+}
+
+impl From<axum::extract::rejection::JsonRejection> for BankError {
+    fn from(error: axum::extract::rejection::JsonRejection) -> Self {
+        ApiError::Json(error).into()
+    }
+}
+
+impl From<sqlx::Error> for BankError {
+    fn from(source: Error) -> Self {
+        ApiError::Sql { source }.into()
     }
 }

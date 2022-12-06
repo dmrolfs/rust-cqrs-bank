@@ -126,6 +126,21 @@ async fn create_account_fails_if_there_is_a_fatal_database_error() {
 }
 
 #[tokio::test]
+async fn deposit_amount_returns_a_200() {
+    let app = spawn_latest_app().await;
+    let body = json!({
+        "amount": "1234.56",
+        "currency": "USD"
+    });
+
+    let response = app.post_create_bank_account(create_account_body(None, None, None)).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let account_id: AccountId = assert_ok!(response.json().await);
+    let response = app.post_deposit_amount(account_id, body).await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn account_view_updates_with_commands() {
     let app = spawn_latest_app().await;
     let body = create_account_body(Some("stella"), None, None);
