@@ -1,6 +1,6 @@
-use crate::helpers::spawn_latest_app;
+use crate::helpers::{spawn_latest_app, TestApp};
 use axum::http::StatusCode;
-use bankaccount::{AccountId, BankAccount, BankAccountView};
+use bankaccount::{AccountId, AtmId, BankAccount, BankAccountView, CheckNumber, LedgerEntry};
 use claim::{assert_ok, assert_some};
 use money2::{Currency, Money};
 use pretty_assertions::{assert_eq, assert_ne};
@@ -19,6 +19,30 @@ fn create_account_body(
         "user_name": user_name,
         "mailing_address": mailing_address.unwrap_or("12 Seahawks Way, Renton, WA 98056, USA"),
         "email": email,
+    })
+}
+
+fn create_money_body(amount: Money) -> serde_json::Value {
+    // Money is serializable, so we could ser directly, but this way get to see JSON structure more clearly.
+    json!({
+        "amount": amount.amount.to_string(),
+        "currency": amount.currency.to_string(),
+    })
+}
+
+fn create_atm_withdrawal_body(atm_id: impl Into<AtmId>, amount: Money) -> serde_json::Value {
+    json!({
+        "atm_id": atm_id.into().to_string(),
+        "amount": create_money_body(amount),
+    })
+}
+
+fn create_check_withdrawal_body(
+    check_nr: impl Into<CheckNumber>, amount: Money,
+) -> serde_json::Value {
+    json!({
+        "check_nr": check_nr.into(),
+        "amount": create_money_body(amount),
     })
 }
 
@@ -128,37 +152,137 @@ async fn create_account_fails_if_there_is_a_fatal_database_error() {
 #[tokio::test]
 async fn deposit_amount_returns_a_200() {
     let app = spawn_latest_app().await;
-    let body = json!({
-        "amount": "1234.56",
-        "currency": "USD"
-    });
+    let body = create_money_body(Money::new(123456, 2, Currency::Usd));
 
     let response = app.post_create_bank_account(create_account_body(None, None, None)).await;
     assert_eq!(response.status(), StatusCode::OK);
     let account_id: AccountId = assert_ok!(response.json().await);
     let response = app.post_deposit_amount(account_id, body).await;
     assert_eq!(response.status(), StatusCode::OK);
+    let _ = assert_bank_account_detail(
+        &app,
+        account_id,
+        BankAccountView {
+            account_id: Some(account_id),
+            balance: Money::new(123456, 2, Currency::Usd),
+            ledger: vec![LedgerEntry::new(
+                "deposit",
+                Money::new(123456, 2, Currency::Usd),
+            )],
+            ..Default::default()
+        },
+    )
+    .await;
 }
 
 #[tokio::test]
+async fn atm_withdrawal_returns_a_200() {
+    let app = spawn_latest_app().await;
+    let response = app.post_create_bank_account(create_account_body(None, None, None)).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let account_id: AccountId = assert_ok!(response.json().await);
+    let response = app
+        .post_deposit_amount(
+            account_id,
+            create_money_body(Money::new(1000, 2, Currency::Usd)),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = create_atm_withdrawal_body("abc_123", Money::new(923, 2, Currency::Usd));
+    let response = app.post_atm_withdrawal(account_id, body).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let _ = assert_bank_account_detail(
+        &app,
+        account_id,
+        BankAccountView {
+            account_id: Some(account_id),
+            balance: Money::new(77, 2, Currency::Usd),
+            ledger: vec![
+                LedgerEntry::new("deposit", Money::new(1000, 2, Currency::Usd)),
+                LedgerEntry::new("ATM withdrawal", Money::new(-923, 2, Currency::Usd)),
+            ],
+            ..Default::default()
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn check_withdrawal_returns_a_200() {
+    let app = spawn_latest_app().await;
+    let response = app.post_create_bank_account(create_account_body(None, None, None)).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let account_id: AccountId = assert_ok!(response.json().await);
+    let response = app
+        .post_deposit_amount(
+            account_id,
+            create_money_body(Money::new(1000, 2, Currency::Usd)),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let check_nr = CheckNumber::new(873487_u32);
+    let body = create_check_withdrawal_body(check_nr, Money::new(923, 2, Currency::Usd));
+    let response = app.post_check_withdrawal(account_id, body).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let _ = assert_bank_account_detail(
+        &app,
+        account_id,
+        BankAccountView {
+            account_id: Some(account_id),
+            balance: Money::new(77, 2, Currency::Usd),
+            ledger: vec![
+                LedgerEntry::new("deposit", Money::new(1000, 2, Currency::Usd)),
+                LedgerEntry::new(
+                    format!("Check {check_nr}"),
+                    Money::new(-923, 2, Currency::Usd),
+                ),
+            ],
+            written_checks: vec![CheckNumber::new(873487_u32)],
+            ..Default::default()
+        },
+    )
+    .await;
+}
+
+// redundant given other tests in this module
+#[tokio::test]
 async fn account_view_updates_with_commands() {
     let app = spawn_latest_app().await;
-    let body = create_account_body(Some("stella"), None, None);
 
+    // -- create bank account
+    let body = create_account_body(Some("stella"), None, None);
     let response = app.post_create_bank_account(body).await;
     assert_eq!(response.status(), StatusCode::OK);
     let account_id: AccountId = assert_ok!(response.json().await);
+    let expected = BankAccountView { account_id: Some(account_id), ..Default::default() };
+    let e_created = assert_bank_account_detail(&app, account_id, expected).await;
 
+    // -- deposit money
+    let deposit = Money::new(435987, 2, Currency::Usd);
+    let response = app.post_deposit_amount(account_id, create_money_body(deposit)).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let _e_deposited = assert_bank_account_detail(
+        &app,
+        account_id,
+        BankAccountView {
+            balance: deposit,
+            ledger: vec![LedgerEntry::new("deposit", deposit)],
+            ..e_created
+        },
+    )
+    .await;
+}
+
+async fn assert_bank_account_detail(
+    app: &TestApp, account_id: AccountId, expected: BankAccountView,
+) -> BankAccountView {
     let response = app.get_serve_bank_account(account_id).await;
     assert_eq!(response.status(), StatusCode::OK);
-    let account_view: BankAccountView = assert_ok!(response.json().await);
-    assert_eq!(
-        account_view,
-        BankAccountView {
-            account_id: Some(account_id),
-            balance: Money::new(0, 2, Currency::Usd),
-            written_checks: vec![],
-            ledger: vec![],
-        }
-    )
+    let actual: BankAccountView = assert_ok!(response.json().await);
+    assert_eq!(actual, expected);
+    actual
 }

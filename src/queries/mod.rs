@@ -1,3 +1,4 @@
+use crate::model;
 use crate::model::{AccountId, BankAccount};
 use crate::model::{BankAccountEvent, CheckNumber};
 use async_trait::async_trait;
@@ -48,6 +49,10 @@ impl LedgerEntry {
     }
 }
 
+fn make_neg_factor(currency: Currency) -> Money {
+    Money::new(-1, 0, currency)
+}
+
 /// Updates the CQRS view with events as they are committed.
 impl View<BankAccount> for BankAccountView {
     fn update(&mut self, event: &EventEnvelope<BankAccount>) {
@@ -58,18 +63,23 @@ impl View<BankAccount> for BankAccountView {
 
             BankAccountEvent::BalanceDeposited { amount } => {
                 self.ledger.push(LedgerEntry::new("deposit", *amount));
-                self.balance += *amount;
+                let converted = model::convert_amount(self.balance.currency, *amount);
+                self.balance += converted;
             },
 
             BankAccountEvent::CashWithdrawal { amount } => {
-                self.ledger.push(LedgerEntry::new("ATM withdrawal", *amount));
-                self.balance -= *amount;
+                let debit = make_neg_factor(amount.currency) * *amount;
+                self.ledger.push(LedgerEntry::new("ATM withdrawal", debit));
+                let converted = model::convert_amount(self.balance.currency, *amount);
+                self.balance -= converted;
             },
 
             BankAccountEvent::CheckWithdrawal { check_nr, amount } => {
-                self.ledger.push(LedgerEntry::new(format!("Check {check_nr}"), *amount));
+                let debit = make_neg_factor(amount.currency) * *amount;
+                self.ledger.push(LedgerEntry::new(format!("Check {check_nr}"), debit));
                 self.written_checks.push(*check_nr);
-                self.balance -= *amount;
+                let converted = model::convert_amount(self.balance.currency, *amount);
+                self.balance -= converted;
             },
 
             event => tracing::debug!(?event, "ignoring non-transactional event"),

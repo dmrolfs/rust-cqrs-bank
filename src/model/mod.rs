@@ -1,8 +1,10 @@
-use money2::{Currency, Money};
+use money2::{Currency, Exchange, ExchangeRates, Money};
 use once_cell::sync::Lazy;
 use pretty_snowflake::{Id, Label, Labeling};
 use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 pub mod bank_account;
 
@@ -11,6 +13,20 @@ pub use bank_account::{
 };
 
 pub static ZERO_MONEY: Lazy<Money> = Lazy::new(|| Money::new(0, 2, Currency::Usd));
+
+static EXCHANGE_RATES: Lazy<ExchangeRates> = Lazy::new(|| {
+    let rates = std::fs::read_to_string("./resources/eurofxref.csv")
+        .expect("failed to load exchange rate file");
+    ExchangeRates::from_str(&rates).expect("failed to parse exchange rate file")
+});
+
+pub fn convert_amount(currency: Currency, amount: Money) -> Money {
+    if currency == amount.currency {
+        amount
+    } else {
+        amount.exchange(currency, &EXCHANGE_RATES)
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -109,6 +125,20 @@ impl AtmId {
 impl fmt::Display for AtmId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl std::str::FromStr for AtmId {
+    type Err = Infallible;
+
+    fn from_str(rep: &str) -> Result<Self, Self::Err> {
+        Ok(rep.into())
+    }
+}
+
+impl From<&str> for AtmId {
+    fn from(rep: &str) -> Self {
+        Self::new(rep)
     }
 }
 

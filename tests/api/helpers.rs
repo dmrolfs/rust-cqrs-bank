@@ -3,7 +3,6 @@ use bankaccount::application::Version;
 pub use bankaccount::tracing::TEST_TRACING;
 use bankaccount::AccountId;
 use claim::assert_ok;
-use money2::Money;
 use once_cell::sync::Lazy;
 use pretty_assertions::assert_eq;
 use pretty_snowflake::LabeledRealtimeIdGenerator;
@@ -140,6 +139,36 @@ impl TestApp {
         let my_request = self
             .api_client
             .post(&format!("{}/deposit/{}", self.bank_url(), account_id))
+            .json(&body);
+        assert_ok!(my_request.send().await)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn post_atm_withdrawal(
+        &self, account_id: AccountId, body: serde_json::Value,
+    ) -> reqwest::Response {
+        let my_request = self
+            .api_client
+            .post(&format!(
+                "{}/atm/withdrawal/{}",
+                self.bank_url(),
+                account_id
+            ))
+            .json(&body);
+        assert_ok!(my_request.send().await)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn post_check_withdrawal(
+        &self, account_id: AccountId, body: serde_json::Value,
+    ) -> reqwest::Response {
+        let my_request = self
+            .api_client
+            .post(&format!(
+                "{}/check/withdrawal/{}",
+                self.bank_url(),
+                account_id
+            ))
             .json(&body);
         assert_ok!(my_request.send().await)
     }

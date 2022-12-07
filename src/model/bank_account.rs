@@ -1,4 +1,5 @@
 use super::AccountId;
+use crate::model;
 use crate::model::{AtmId, CheckNumber, EmailAddress, MailingAddress, ZERO_MONEY};
 use async_trait::async_trait;
 use cqrs_es::{Aggregate, DomainEvent};
@@ -214,17 +215,20 @@ impl AggregateState for ActiveBankAccount {
         match event {
             BankAccountEvent::BalanceDeposited { amount } => {
                 let mut updated = self.clone();
-                updated.balance += amount;
+                let converted = model::convert_amount(self.balance.currency, amount);
+                updated.balance += converted;
                 Some(BankAccountState::Active(updated))
             },
             BankAccountEvent::CashWithdrawal { amount } => {
                 let mut updated = self.clone();
-                updated.balance -= amount; // ignoring negative balance here
+                let converted = model::convert_amount(self.balance.currency, amount);
+                updated.balance -= converted; // ignoring negative balance here
                 Some(BankAccountState::Active(updated))
             },
             BankAccountEvent::CheckWithdrawal { amount, .. } => {
                 let mut updated = self.clone();
-                updated.balance -= amount;
+                let converted = model::convert_amount(self.balance.currency, amount);
+                updated.balance -= converted;
                 Some(BankAccountState::Active(updated))
             },
             BankAccountEvent::MailingAddressUpdated { new_address } => {
@@ -278,7 +282,8 @@ impl ActiveBankAccount {
     fields(account_id=%self.account_id, balance=%self.balance)
     )]
     fn check_funds_available(&self, amount: Money) -> Result<Money, BankAccountError> {
-        let balance = self.balance - amount;
+        let converted = model::convert_amount(self.balance.currency, amount);
+        let balance = self.balance - converted;
         if *ZERO_MONEY <= balance {
             Ok(balance)
         } else {

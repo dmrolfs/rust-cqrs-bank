@@ -37,7 +37,7 @@ pub fn api() -> Router<AppState> {
             routing::post(withdrawal_by_atm),
         )
         .route(
-            "/check/withdrawl/:account_id",
+            "/check/withdrawal/:account_id",
             routing::post(withdrawal_by_check),
         )
         .route("/balance", routing::get(serve_all_by_balance))
@@ -197,7 +197,7 @@ async fn withdrawal_by_check(
 
 #[tracing::instrument(level = "trace", skip(pool))]
 async fn serve_all_by_balance(State(pool): State<PgPool>) -> impl IntoResponse {
-    let select_sql = format!("SELECT version, payload FROM {}", ACCOUNT_QUERY_VIEW);
+    let select_sql = format!("SELECT version, payload FROM {ACCOUNT_QUERY_VIEW}");
     let payloads = sqlx::query(&select_sql).fetch_all(&pool).await?;
 
     let account_balances: Vec<_> = payloads
@@ -214,6 +214,7 @@ async fn serve_all_by_balance(State(pool): State<PgPool>) -> impl IntoResponse {
             }
         })
         .sorted_by_key(|view| view.balance)
+        .rev()
         .collect();
 
     Result::<_, BankError>::Ok(Json(account_balances))

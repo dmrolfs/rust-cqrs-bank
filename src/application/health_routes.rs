@@ -1,6 +1,5 @@
 use crate::application::app_state::AppState;
-use crate::model::BankAccountAggregate;
-use crate::queries::BankAccountViewProjection;
+use crate::application::ACCOUNT_QUERY_VIEW;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -53,11 +52,9 @@ impl From<HealthStatus> for StatusCode {
     }
 }
 
-#[tracing::instrument(level = "trace", skip(agg, view))]
-async fn serve_health(
-    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
-) -> impl IntoResponse {
-    let (system_health, _health_report) = check_health(agg, view).await;
+#[tracing::instrument(level = "trace", skip(app))]
+async fn serve_health(State(app): State<AppState>) -> impl IntoResponse {
+    let (system_health, _health_report) = check_health(app).await;
     serde_json::to_value::<HealthStatusResponse>(system_health.into())
         .map(|resp| (system_health.into(), Json(resp)))
         .unwrap_or_else(|error| {
@@ -68,31 +65,39 @@ async fn serve_health(
         })
 }
 
-#[tracing::instrument(level = "trace", skip(agg, view))]
-async fn serve_readiness(
-    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
-) -> impl IntoResponse {
-    let (system_health, _) = check_health(agg, view).await;
+#[tracing::instrument(level = "trace", skip(app))]
+async fn serve_readiness(State(app): State<AppState>) -> impl IntoResponse {
+    let (system_health, _) = check_health(app).await;
     let status_code: StatusCode = system_health.into();
     status_code
 }
 
-#[tracing::instrument(level = "trace", skip(agg, view))]
-async fn serve_liveness(
-    State(agg): State<BankAccountAggregate>, State(view): State<BankAccountViewProjection>,
-) -> impl IntoResponse {
-    let (system_health, _) = check_health(agg, view).await;
+#[tracing::instrument(level = "trace", skip(app))]
+async fn serve_liveness(State(app): State<AppState>) -> impl IntoResponse {
+    let (system_health, _) = check_health(app).await;
     let status_code: StatusCode = system_health.into();
     status_code
 }
 
-#[tracing::instrument(level = "trace", skip(_bankaccount_agg, _bankaccount_view))]
-async fn check_health(
-    _bankaccount_agg: BankAccountAggregate, _bankaccount_view: BankAccountViewProjection,
-) -> (HealthStatus, HashMap<HealthStatus, Vec<&'static str>>) {
+#[tracing::instrument(level = "trace", skip(app))]
+async fn check_health(app: AppState) -> (HealthStatus, HashMap<HealthStatus, Vec<&'static str>>) {
+    let view_select_sql = format!("SELECT version FROM {ACCOUNT_QUERY_VIEW}");
+    let view_status: Result<(), anyhow::Error> = sqlx::query(&view_select_sql)
+        .fetch_optional(&app.db_pool)
+        .await
+        .map_err(|err| err.into())
+        .map(|_| ());
+
+    let agg_select_sql = "SELECT event_version FROM events";
+    let agg_status: Result<(), anyhow::Error> = sqlx::query(agg_select_sql)
+        .fetch_optional(&app.db_pool)
+        .await
+        .map_err(|err| err.into())
+        .map(|_| ());
+
     let service_statuses = vec![
-        ("bank_account_aggregate", Result::<_, anyhow::Error>::Ok(())),
-        ("bank_account_view", Result::<_, anyhow::Error>::Ok(())),
+        ("bank_account_aggregate", agg_status),
+        ("bank_account_view", view_status),
     ];
 
     let service_by_status = service_statuses

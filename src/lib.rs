@@ -16,6 +16,6 @@ mod settings;
 pub mod tracing;
 
 pub use application::{ApiError, Application};
-pub use model::{AccountId, BankAccount, CheckNumber};
+pub use model::{AccountId, AtmId, BankAccount, CheckNumber, EmailAddress, MailingAddress};
 pub use queries::{BankAccountView, LedgerEntry};
 pub use settings::{CliOptions, CorrelationSettings, Settings};
