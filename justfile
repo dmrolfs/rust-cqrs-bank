@@ -6,6 +6,7 @@ set dotenv-load
 
 alias c := full-check
 alias u := update
+alias r := run
 #alias d := build-docker
 #alias drl := docker-run-local
 
@@ -20,6 +21,9 @@ full-check:
 update:
   cargo upgrade --workspace
   cargo update
+
+run:
+  RUST_BACKTRACE=full RUST_LOG="debug" cargo run -- --secrets ./resources/secrets.yaml | bunyan
 
 #build-docker:
 #  cargo test
