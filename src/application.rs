@@ -1,3 +1,14 @@
+mod app_state;
+mod bank_routes;
+pub mod errors;
+mod health_routes;
+mod result;
+
+use crate::settings::HttpApiSettings;
+pub use app_state::{AppState, ACCOUNT_QUERY_VIEW, ACCOUNT_QUERY_VIEW_PAYLOAD};
+pub use errors::ApiError;
+pub use result::HttpResult;
+
 use crate::Settings;
 use axum::error_handling::HandleErrorLayer;
 use axum::http::{StatusCode, Uri};
@@ -13,17 +24,8 @@ use tokio::task::JoinHandle;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tower_http::ServiceBuilderExt;
-
-mod app_state;
-mod bank_routes;
-pub mod errors;
-mod health_routes;
-mod result;
-
-use crate::settings::HttpApiSettings;
-pub use app_state::{AppState, ACCOUNT_QUERY_VIEW, ACCOUNT_QUERY_VIEW_PAYLOAD};
-pub use errors::ApiError;
-pub use result::HttpResult;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::{SwaggerUi, Url as SwaggerUrl};
 
 pub type HttpJoinHandle = JoinHandle<Result<(), ApiError>>;
 
@@ -122,11 +124,22 @@ pub async fn run_http_server(
         .with_state(state);
 
     let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").urls(vec![
+            (
+                SwaggerUrl::with_primary("bank_api", "/api-doc/bank-openapi.json", true),
+                bank_routes::BankApiDoc::openapi(),
+            ),
+            (
+                SwaggerUrl::new("health_api", "/api-doc/health-openapi.json"),
+                health_routes::HealthApiDoc::openapi(),
+            ),
+        ]))
         .nest("/api/v1", api_routes)
         .fallback(fallback)
         .layer(middleware_stack);
 
     let handle = tokio::spawn(async move {
+        tracing::debug!(app_routes=?app, "starting API server...");
         let builder = axum::Server::from_tcp(listener)?;
         let server = builder.serve(app.into_make_service());
         let graceful = server.with_graceful_shutdown(shutdown_signal());

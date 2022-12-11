@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
+use utoipa::{IntoParams, ToSchema};
 
 pub mod bank_account;
 
@@ -28,7 +29,22 @@ pub fn convert_amount(currency: Currency, amount: Money) -> Money {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ToSchema,
+    IntoParams,
+    Serialize,
+    Deserialize,
+)]
+#[schema(example = json!(7006077196242653184_u64))]
+#[into_params(names("account_id"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct AccountId(i64);
@@ -65,7 +81,8 @@ impl From<AccountId> for Id<BankAccount> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, ToSchema, Serialize, Deserialize)]
+#[schema(example = json!("12 Seahawks Way, Renton, WA 98056"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct MailingAddress(String);
@@ -86,7 +103,8 @@ impl fmt::Display for MailingAddress {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, ToSchema, Serialize, Deserialize)]
+#[schema(example = json!("otis@example.com"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct EmailAddress(String);
@@ -107,7 +125,8 @@ impl fmt::Display for EmailAddress {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, ToSchema, Serialize, Deserialize)]
+#[schema(example = json!("abc_123"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct AtmId(String);
@@ -142,7 +161,8 @@ impl From<&str> for AtmId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ToSchema, Serialize, Deserialize)]
+#[schema(example = json!("1082"))]
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct CheckNumber(u32);

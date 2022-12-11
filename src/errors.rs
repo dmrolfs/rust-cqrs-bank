@@ -1,11 +1,12 @@
-use crate::{application, model, ApiError};
+use crate::{application, model};
 use anyhow::anyhow;
 use cqrs_es::persist::PersistenceError;
 use cqrs_es::AggregateError;
 use sqlx::Error;
 use thiserror::Error;
+use utoipa::ToSchema;
 
-#[derive(Debug, Error)]
+#[derive(Debug, ToSchema, Error)]
 #[non_exhaustive]
 pub enum BankError {
     #[error("{0}")]
@@ -57,18 +58,18 @@ impl From<PersistenceError> for BankError {
 
 impl From<axum::extract::rejection::PathRejection> for BankError {
     fn from(error: axum::extract::rejection::PathRejection) -> Self {
-        ApiError::Path(error).into()
+        application::ApiError::Path(error).into()
     }
 }
 
 impl From<axum::extract::rejection::JsonRejection> for BankError {
     fn from(error: axum::extract::rejection::JsonRejection) -> Self {
-        ApiError::Json(error).into()
+        application::ApiError::Json(error).into()
     }
 }
 
 impl From<sqlx::Error> for BankError {
     fn from(source: Error) -> Self {
-        ApiError::Sql { source }.into()
+        application::ApiError::Sql { source }.into()
     }
 }

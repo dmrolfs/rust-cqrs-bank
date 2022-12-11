@@ -8,6 +8,7 @@ use money2::{Currency, Money};
 use postgres_es::PostgresViewRepository;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::ToSchema;
 
 pub type BankAccountViewRepository = PostgresViewRepository<BankAccountView, BankAccount>;
 pub type BankAccountViewProjection = Arc<BankAccountViewRepository>;
@@ -18,7 +19,7 @@ pub type AccountQuery = GenericQuery<BankAccountViewRepository, BankAccountView,
 
 /// the view for a BankAccount query, for a standard http application this should be designed to
 /// reflect the response that will be returned to a user.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, ToSchema, Serialize, Deserialize)]
 pub struct BankAccountView {
     pub account_id: Option<AccountId>,
     pub balance: Money,

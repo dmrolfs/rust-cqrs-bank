@@ -11,16 +11,43 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::string::ToString;
 use strum_macros::{Display, EnumString, EnumVariantNames};
+use utoipa::{OpenApi, ToSchema};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(serve_health, serve_readiness, serve_liveness),
+    components(
+        schemas(HealthStatus, HealthStatusReport)
+    ),
+    tags(
+        (name = "health", description = "Bank Account Health API")
+    )
+)]
+pub struct HealthApiDoc;
 
 pub fn api() -> Router<AppState> {
     Router::new()
+        // .merge(
+        //     SwaggerUi::new("/swagger-ui")
+        //         .url("/api-doc/health/openapi.json", HealthApiDoc::openapi()),
+        // )
         .route("/", routing::get(serve_health))
         .route("/ready", routing::get(serve_readiness))
         .route("/live", routing::get(serve_liveness))
 }
 
 #[derive(
-    Debug, Display, Copy, Clone, PartialEq, Eq, Hash, EnumString, EnumVariantNames, Serialize,
+    Debug,
+    Display,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    EnumString,
+    EnumVariantNames,
+    ToSchema,
+    Serialize,
 )]
 // #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
@@ -31,12 +58,12 @@ pub enum HealthStatus {
     Down,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct HealthStatusResponse {
+#[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize)]
+pub struct HealthStatusReport {
     status: HealthStatus,
 }
 
-impl From<HealthStatus> for HealthStatusResponse {
+impl From<HealthStatus> for HealthStatusReport {
     fn from(status: HealthStatus) -> Self {
         Self { status }
     }
@@ -52,10 +79,21 @@ impl From<HealthStatus> for StatusCode {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/",
+    context_path = "/api/v1/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "system health"),
+        (status = 5XX, description = "system down")
+    )
+)]
+#[axum::debug_handler]
 #[tracing::instrument(level = "trace", skip(app))]
 async fn serve_health(State(app): State<AppState>) -> impl IntoResponse {
     let (system_health, _health_report) = check_health(app).await;
-    serde_json::to_value::<HealthStatusResponse>(system_health.into())
+    serde_json::to_value::<HealthStatusReport>(system_health.into())
         .map(|resp| (system_health.into(), Json(resp)))
         .unwrap_or_else(|error| {
             (
@@ -65,6 +103,17 @@ async fn serve_health(State(app): State<AppState>) -> impl IntoResponse {
         })
 }
 
+#[utoipa::path(
+    get,
+    path = "/ready",
+    context_path = "/api/v1/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "system ready"),
+        (status = 5XX, description = "system not ready")
+    )
+)]
+#[axum::debug_handler]
 #[tracing::instrument(level = "trace", skip(app))]
 async fn serve_readiness(State(app): State<AppState>) -> impl IntoResponse {
     let (system_health, _) = check_health(app).await;
@@ -72,6 +121,17 @@ async fn serve_readiness(State(app): State<AppState>) -> impl IntoResponse {
     status_code
 }
 
+#[utoipa::path(
+    get,
+    path = "/live",
+    context_path = "/api/v1/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "system live"),
+        (status = 5XX, description = "system not live")
+    )
+)]
+#[axum::debug_handler]
 #[tracing::instrument(level = "trace", skip(app))]
 async fn serve_liveness(State(app): State<AppState>) -> impl IntoResponse {
     let (system_health, _) = check_health(app).await;

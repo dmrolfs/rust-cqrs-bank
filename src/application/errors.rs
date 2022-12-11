@@ -1,6 +1,7 @@
 use thiserror::Error;
+use utoipa::ToSchema;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, ToSchema)]
 pub enum ApiError {
     #[error("Invalid URL path input: {0}")]
     Path(#[from] axum::extract::rejection::PathRejection),

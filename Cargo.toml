@@ -19,9 +19,11 @@ settings_loader = { git = "https://github.com/dmrolfs/settings-loader-rs", featu
 cqrs-es = "0.4.5"
 postgres-es = "0.4.5"
 
+utoipa = { version = "2.4.2", features = ["axum_extras", "chrono", "decimal"] }
+utoipa-swagger-ui = { version = "3.0.1", features = ["axum"] }
 anyhow = "1.0.66"
 async-trait = "0.1.59"
-axum = "0.6.1"
+axum = { version = "0.6.1", default_features = true, features = ["macros"] }
 chrono = "0.4.23"
 clap = { version = "4.0.29", default_features = true, features = ["derive"] }
 config = "0.13.3"
