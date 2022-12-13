@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use pretty_assertions::assert_eq;
 use pretty_snowflake::LabeledRealtimeIdGenerator;
 use reqwest::header;
+use secrecy::ExposeSecret;
 use settings_loader::common::database::DatabaseSettings;
 use settings_loader::SettingsLoader;
 use sqlx::migrate::MigrateDatabase;
@@ -76,7 +77,7 @@ async fn configure_database(settings: &DatabaseSettings) -> PgPool {
         "Failed to connect to Postgres."
     );
 
-    let db_url = assert_ok!(settings.database_url());
+    let db_url = settings.connection_string().expose_secret().to_string();
     if !assert_ok!(sqlx::Postgres::database_exists(db_url.as_str()).await) {
         assert_ok!(
             connection
