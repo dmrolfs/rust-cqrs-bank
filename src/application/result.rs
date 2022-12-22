@@ -72,8 +72,16 @@ impl HttpError {
             },
             Some(BankError::BankAccount(_)) => Self::BadRequest { error: error.into() },
             Some(BankError::Api(_)) => Self::Internal { error: error.into() },
+            Some(BankError::Validation(_)) => Self::BadRequest { error: error.into() },
             Some(BankError::User(_)) => Self::BadRequest { error: error.into() },
-            Some(_) => Self::Internal { error: error.into() },
+
+            // consideration in explicit list rt. short circuit is compiler-enforced review of how
+            // respond to new BankError variants
+            Some(BankError::AggregateConflict)
+            | Some(BankError::DatabaseConnection { .. })
+            | Some(BankError::Deserialization { .. })
+            | Some(BankError::Unexpected { .. }) => Self::Internal { error: error.into() },
+            // Some(_) => Self::Internal { error: error.into() },
             None => Self::Internal { error: error.into() },
         }
     }

@@ -25,6 +25,7 @@ use std::{fmt, ops};
 use utoipa::openapi;
 use utoipa::openapi::security::{ClientCredentials, Flow, OAuth2, Scopes, SecurityScheme};
 use utoipa::{Modify, OpenApi, ToSchema};
+use validator::{Validate, ValidationErrors};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[repr(transparent)]
@@ -159,17 +160,33 @@ pub fn api() -> Router<AppState> {
         .route("/balance", routing::get(serve_all_by_balance))
 }
 
-#[derive(Debug, ToSchema, Deserialize)]
+#[derive(Debug, ToSchema, Validate, Deserialize)]
 #[schema(example = json!({
     "user_name": "otis",
     "mailing_address": MailingAddress::new("12 Seahawks Way, Renton, WA 98056"),
-    "email": EmailAddress::new("otis@example.com"),
+    "email": EmailAddress::parse("otis@example.com").unwrap(),
 }))]
 #[allow(dead_code)]
 struct AccountApplication {
     user_name: String,
     mailing_address: MailingAddress,
+    #[validate]
     email: EmailAddress,
+}
+
+#[allow(dead_code)]
+impl AccountApplication {
+    pub fn new(
+        user_name: impl Into<String>, mailing_address: impl Into<MailingAddress>,
+        email: impl Into<EmailAddress>,
+    ) -> Result<Self, ValidationErrors> {
+        let application = Self {
+            user_name: user_name.into(),
+            mailing_address: mailing_address.into(),
+            email: email.into(),
+        };
+        application.validate().map(|_| application)
+    }
 }
 
 #[utoipa::path(
@@ -190,6 +207,12 @@ struct AccountApplication {
 async fn create_bank_account(
     State(agg): State<BankAccountAggregate>, Json(account_application): Json<AccountApplication>,
 ) -> impl IntoResponse {
+    {
+        let span = tracing::debug_span!("validating account application", ?account_application);
+        let _span_guard = span.enter();
+        account_application.validate()?;
+    }
+
     let aggregate_id = bank_account::generate_id();
     let account_id: AccountId = aggregate_id.clone().into();
     let command = BankAccountCommand::OpenAccount {
@@ -257,6 +280,7 @@ async fn update_email(
     let Path(account_id) = account_id?;
     let aggregate_id: Id<BankAccount> = account_id.into();
     let Json(new_email) = new_email?;
+    new_email.validate()?;
 
     agg.execute_with_metadata(
         aggregate_id.pretty(),

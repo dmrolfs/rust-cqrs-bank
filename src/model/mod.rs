@@ -6,6 +6,7 @@ use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
 use utoipa::{IntoParams, ToSchema};
+use validator::{Validate, ValidationError, ValidationErrors};
 
 pub mod bank_account;
 
@@ -110,8 +111,9 @@ impl fmt::Display for MailingAddress {
 pub struct EmailAddress(String);
 
 impl EmailAddress {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
+    pub fn parse(email: impl Into<String>) -> Result<Self, ValidationErrors> {
+        let email_address = Self(email.into());
+        email_address.validate().map(|_| email_address)
     }
 
     pub fn as_str(&self) -> &str {
@@ -122,6 +124,27 @@ impl EmailAddress {
 impl fmt::Display for EmailAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Validate for EmailAddress {
+    #[tracing::instrument(level = "debug")]
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        if validator::validate_email(&self.0) {
+            Ok(())
+        } else {
+            let mut errors = ValidationErrors::new();
+            errors.add(
+                "value",
+                ValidationError {
+                    code: "email".into(),
+                    message: None, //Some("invalid email format".into()),
+                    params: maplit::hashmap! { "value".into() => self.0.as_str().into(), },
+                },
+            );
+
+            Err(errors)
+        }
     }
 }
 

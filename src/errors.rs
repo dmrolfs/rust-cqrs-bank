@@ -12,6 +12,9 @@ pub enum BankError {
     #[error("{0}")]
     Api(#[from] application::ApiError),
 
+    #[error("Invalid request data: {0}")]
+    Validation(#[from] validator::ValidationErrors),
+
     #[error("{0}")]
     BankAccount(#[from] model::BankAccountError),
 
