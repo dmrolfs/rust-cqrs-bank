@@ -155,10 +155,21 @@ async fn deposit_amount_returns_a_200() {
     let body = create_money_body(Money::new(123456, 2, Currency::Usd));
 
     let response = app.post_create_bank_account(create_account_body(None, None, None)).await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let account_id: AccountId = assert_ok!(response.json().await);
+    tracing::info!(?response, "post_create_bank_account responded - main");
+    let response_status = response.status();
+    let response_body = response.text().await;
+    tracing::info!(?response_body, "post_create_bank_account responded - body");
+    assert_eq!(response_status, StatusCode::OK);
+    let response_body = assert_ok!(response_body);
+    let account_id: AccountId = assert_ok!(serde_json::from_str(&response_body));
+
     let response = app.post_deposit_amount(account_id, body).await;
-    assert_eq!(response.status(), StatusCode::OK);
+    tracing::info!(?response, "post_deposit_amount responded - main");
+    let response_status = response.status();
+    let response_body = response.text().await;
+    tracing::info!(?response_body, "post_deposit_amount responded - body");
+    assert_eq!(response_status, StatusCode::OK);
+
     let _ = assert_bank_account_detail(
         &app,
         account_id,

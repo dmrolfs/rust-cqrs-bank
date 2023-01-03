@@ -16,6 +16,8 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 static ID_GEN: Lazy<std::sync::RwLock<LabeledRealtimeIdGenerator<()>>> =
     Lazy::new(|| std::sync::RwLock::new(LabeledRealtimeIdGenerator::default()));
 
+pub const X_REAL_IP: &str = "x-real-ip";
+
 pub async fn spawn_latest_app() -> TestApp {
     spawn_app(Version::latest()).await
 }
@@ -123,13 +125,17 @@ impl TestApp {
             .api_client
             .post(&format!("{}", self.bank_url()))
             .header(header::CONTENT_TYPE, "application/json")
+            .header(X_REAL_IP, "127.0.0.1")
             .json(&body);
         assert_ok!(my_request.send().await)
     }
 
     #[tracing::instrument(skip(self))]
     pub async fn get_serve_bank_account(&self, account_id: AccountId) -> reqwest::Response {
-        let my_request = self.api_client.get(&format!("{}/{}", self.bank_url(), account_id));
+        let my_request = self
+            .api_client
+            .get(&format!("{}/{}", self.bank_url(), account_id))
+            .header(X_REAL_IP, "127.0.0.1");
         assert_ok!(my_request.send().await)
     }
 
@@ -140,6 +146,7 @@ impl TestApp {
         let my_request = self
             .api_client
             .post(&format!("{}/deposit/{}", self.bank_url(), account_id))
+            .header(X_REAL_IP, "127.0.0.1")
             .json(&body);
         assert_ok!(my_request.send().await)
     }
@@ -155,7 +162,9 @@ impl TestApp {
                 self.bank_url(),
                 account_id
             ))
+            .header(X_REAL_IP, "127.0.0.1")
             .json(&body);
+        tracing::info!("atm withdrawal request: {my_request:?}");
         assert_ok!(my_request.send().await)
     }
 
@@ -170,6 +179,7 @@ impl TestApp {
                 self.bank_url(),
                 account_id
             ))
+            .header(X_REAL_IP, "127.0.0.1")
             .json(&body);
         assert_ok!(my_request.send().await)
     }

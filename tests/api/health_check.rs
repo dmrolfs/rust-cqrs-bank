@@ -1,4 +1,4 @@
-use crate::helpers::spawn_latest_app;
+use crate::helpers::{spawn_latest_app, X_REAL_IP};
 use axum::http::StatusCode;
 use pretty_assertions::assert_eq;
 use tokio_test::assert_ok;
@@ -11,7 +11,7 @@ async fn health_check_works() {
 
     let url = format!("{}/api/{version}/health", app.http_address);
     assert_eq!(url, format!("http://0.0.0.0:{}/api/v1/health", app.port));
-    let response = assert_ok!(client.get(url).send().await);
+    let response = assert_ok!(client.get(url).header(X_REAL_IP, "127.0.0.1").send().await);
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(

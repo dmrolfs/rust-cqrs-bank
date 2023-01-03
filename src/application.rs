@@ -11,8 +11,7 @@ pub use result::HttpResult;
 
 use crate::Settings;
 use axum::error_handling::HandleErrorLayer;
-use axum::http::{StatusCode, Uri};
-use axum::response::IntoResponse;
+use axum::http::{Response, StatusCode, Uri};
 use axum::{BoxError, Router};
 use serde::Deserialize;
 use settings_loader::common::database::DatabaseSettings;
@@ -22,6 +21,9 @@ use strum::Display;
 use tokio::signal;
 use tokio::task::JoinHandle;
 use tower::ServiceBuilder;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::key_extractor::SmartIpKeyExtractor;
+use tower_governor::GovernorLayer;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tower_http::ServiceBuilderExt;
 use utoipa::OpenApi;
@@ -101,9 +103,18 @@ pub async fn run_http_server(
 ) -> Result<HttpJoinHandle, ApiError> {
     let state = app_state::initialize_app_state(db_pool).await?;
 
+    let governor_conf = Box::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
+            .finish()
+            .unwrap(),
+    );
+
     let middleware_stack = ServiceBuilder::new()
-        // .rate_limit(params.rate_limit.nr_requests, params.rate_limit.per_duration)
         .layer(HandleErrorLayer::new(handle_api_error))
+        .layer(GovernorLayer {
+            config: Box::leak(governor_conf) // okay to leak because it is created once and then used by layer
+        })
         .timeout(params.http_api.timeout)
         .compression()
         .layer(
@@ -111,10 +122,6 @@ pub async fn run_http_server(
                 .make_span_with(DefaultMakeSpan::new().include_headers(true))
                 .on_response(DefaultOnResponse::new().include_headers(true))
         )
-        // .layer(tower::limit::RateLimitLayer::new(
-        //     params.rate_limit.nr_requests,
-        //     params.rate_limit.per_duration,
-        // ))
         // .set_x_request_id(unimplemented!())
         .propagate_x_request_id();
 
@@ -161,17 +168,19 @@ async fn fallback(uri: Uri) -> (StatusCode, String) {
     (StatusCode::NOT_FOUND, format!("No route found for {uri}"))
 }
 
-async fn handle_api_error(error: BoxError) -> impl IntoResponse {
+async fn handle_api_error(error: BoxError) -> Response<String> {
     if error.is::<tower::timeout::error::Elapsed>() {
-        (
-            StatusCode::REQUEST_TIMEOUT,
-            format!("request took too long: {error}"),
-        )
+        let response = Response::new(format!("REQUEST TIMEOUT: {error}"));
+        let (mut parts, body) = response.into_parts();
+        parts.status = StatusCode::REQUEST_TIMEOUT;
+        Response::from_parts(parts, body)
+    } else if error.is::<tower_governor::errors::GovernorError>() {
+        tower_governor::errors::display_error(error)
     } else {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {error}"),
-        )
+        let response = Response::new(format!("INTERNAL SERVER ERROR: {error}"));
+        let (mut parts, body) = response.into_parts();
+        parts.status = StatusCode::INTERNAL_SERVER_ERROR;
+        Response::from_parts(parts, body)
     }
 }
 
